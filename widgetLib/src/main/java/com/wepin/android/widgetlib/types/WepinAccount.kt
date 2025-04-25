@@ -1,6 +1,6 @@
 package com.wepin.android.widgetlib.types
 
-import com.wepin.android.networklib.types.wepin.AppAccount
+import com.wepin.android.core.types.wepin.AppAccount
 
 data class WepinAccount(
     val address: String,

@@ -2,10 +2,10 @@ package com.wepin.android.widgetlib.utils
 
 import com.wepin.android.commonlib.WepinCommon
 import com.wepin.android.commonlib.error.WepinError
-import com.wepin.android.networklib.types.wepin.AppAccount
-import com.wepin.android.networklib.types.wepin.AppNFT
-import com.wepin.android.networklib.types.wepin.GetAccountBalanceResponse
-import com.wepin.android.networklib.types.wepin.NFTContract
+import com.wepin.android.core.types.wepin.AppAccount
+import com.wepin.android.core.types.wepin.AppNFT
+import com.wepin.android.core.types.wepin.GetAccountBalanceResponse
+import com.wepin.android.core.types.wepin.NFTContract
 import com.wepin.android.widgetlib.types.WepinAccount
 import com.wepin.android.widgetlib.types.WepinAccountBalanceInfo
 import com.wepin.android.widgetlib.types.WepinNFT

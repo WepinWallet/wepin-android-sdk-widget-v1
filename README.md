@@ -191,7 +191,8 @@ The `getStatus()` method returns the lifecycle status of Wepin Widget SDK.
 
 #### Returns
 
-- Future\<WepinLifeCycle> - Returns the current lifecycle of the Wepin SDK, which is defined as
+- CompletableFuture\<WepinLifeCycle> - Returns the current lifecycle of the Wepin SDK, which is
+  defined as
   follows:
     - `NOT_INITIALIZED`:  Wepin is not initialized.
     - `INITIALIZING`: Wepin is in the process of initializing.
@@ -835,7 +836,8 @@ opening a new screen), an Activity context is recommended.
 
 #### Returns
 
-- Future \<WepinReceiveResponse> - A future that resolves to a `WepinReceiveResponse` object
+- CompletableFuture \<WepinReceiveResponse> - A future that resolves to a `WepinReceiveResponse`
+  object
   containing the information about the opened account.
     - account \<WepinAccount> - The account information of the page that was opened.
         - network \<String> - The network associated with the account.
@@ -903,7 +905,7 @@ established.
 
 #### Returns
 
-- CompletableFuture\<Boolean> - A future that completes when the SDK has been finalized.
+- <Boolean> - A future that completes when the SDK has been finalized.
 
 #### Example
 

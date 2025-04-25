@@ -6,10 +6,10 @@ import com.wepin.android.commonlib.error.WepinError
 import com.wepin.android.commonlib.types.JSResponse
 import com.wepin.android.commonlib.types.LoginOauthAccessTokenRequest
 import com.wepin.android.commonlib.types.LoginOauthIdTokenRequest
+import com.wepin.android.core.storage.WepinStorageManager
+import com.wepin.android.core.utils.convertJsonToLocalStorageData
 import com.wepin.android.loginlib.types.LoginOauth2Params
 import com.wepin.android.loginlib.types.OauthTokenType
-import com.wepin.android.storage.WepinStorageManager
-import com.wepin.android.storage.utils.convertJsonToLocalStorageData
 import com.wepin.android.widgetlib.manager.WepinWidgetManager
 import com.wepin.android.widgetlib.types.SetEmailBodyData
 import org.json.JSONObject

@@ -60,31 +60,14 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
 
-//    implementation(project(":libs:common:commonLib"))
 //    api(project(":libs:common:commonLib"))
 //    implementation(project(":libs:modal:modalLib"))
-//    implementation(project(":libs:network:networkLib"))
-//    implementation(project(":libs:storage:storageLib"))
-//    implementation(project(":libs:session:sessionLib"))
-//    implementation(project(":libs:login:loginLib"))
-
-    api("io.wepin:wepin-android-sdk-common-v1:${sdkVersion}")
-    implementation("io.wepin:wepin-android-sdk-network-v1:${sdkVersion}")
-    implementation("io.wepin:wepin-android-sdk-modal-v1:${sdkVersion}")
-    implementation("io.wepin:wepin-android-sdk-storage-v1:${sdkVersion}")
-    implementation("io.wepin:wepin-android-sdk-session-v1:${sdkVersion}")
-    implementation("com.github.WepinWallet:wepin-android-sdk-login-v1:v${sdkVersion}")
-
-//    implementation("com.github.WepinWallet:wepin-android-sdk-login-v1:v1.0.0")
-
-//    // Jackson Databind for JSON serialization/deserialization
-//    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
-//
-//    // Jackson Annotations
-//    implementation("com.fasterxml.jackson.core:jackson-annotations:2.15.2")
-//
-//    // Jackson Kotlin module
-//    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.2")
+//    implementation(project(":libs:core:coreLib"))
+//    api(project(":libs:login:loginLib"))
+    api("io.wepin:wepin-android-sdk-common-v1:1.1.1")
+    implementation("io.wepin:wepin-android-sdk-modal-v1:1.1.1")
+    implementation("io.wepin:wepin-android-sdk-core-v1:1.1.1")
+    api("com.github.WepinWallet:wepin-android-sdk-login-v1:v1.1.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

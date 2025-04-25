@@ -64,8 +64,8 @@ fun WepinWidgetTestScreen() {
     val context = LocalContext.current
 
     var selectedLanguage by remember { mutableStateOf("en") }
-    var appId by remember { mutableStateOf("WEPIN_APP_ID") }
-    var appKey by remember { mutableStateOf("WEPIN_APP_KEY") }
+    var appId by remember { mutableStateOf(context.getString(R.string.wepin_app_id)) }
+    var appKey by remember { mutableStateOf(context.getString(R.string.wepin_app_key)) }
 
     var showSettingsPanel by remember { mutableStateOf(false) }
 
@@ -84,13 +84,28 @@ fun WepinWidgetTestScreen() {
     val providerInfos = listOf(
         LoginProviderInfo(
             provider = "google",
-            clientId = "GOOGLE_CLIENT_ID"
+            clientId = context.getString(R.string.default_google_web_client_id)
         ),
-        LoginProviderInfo(provider = "apple", clientId = "APPLE_CLIENT_ID"),
-        LoginProviderInfo(provider = "discord", clientId = "DISCORD_CLIENT_ID"),
-        LoginProviderInfo(provider = "naver", clientId = "NAVER_CLIENT_ID"),
-        LoginProviderInfo(provider = "facebook", clientId = "FACEBOOK_CLIENT_ID"),
-        LoginProviderInfo(provider = "line", clientId = "LINE_CLIENT_ID"),
+        LoginProviderInfo(
+            provider = "apple",
+            clientId = context.getString(R.string.default_apple_client_id)
+        ),
+        LoginProviderInfo(
+            provider = "discord",
+            clientId = context.getString(R.string.default_discord_client_id)
+        ),
+        LoginProviderInfo(
+            provider = "naver",
+            clientId = context.getString(R.string.default_naver_client_id)
+        ),
+        LoginProviderInfo(
+            provider = "facebook",
+            clientId = context.getString(R.string.default_facebook_client_id)
+        ),
+        LoginProviderInfo(
+            provider = "line",
+            clientId = context.getString(R.string.default_line_client_id)
+        ),
     )
 
     var accountList by remember { mutableStateOf(emptyList<WepinAccount>()) }
@@ -278,7 +293,7 @@ fun WepinWidgetTestScreen() {
 
             Button(
                 onClick = {
-                    wepinWidget.loginWithUI(context, listOf(), "EMAIL").thenApply {
+                    wepinWidget.loginWithUI(context, listOf(), "email").thenApply {
                         status = "logged in: $it"
                     }.exceptionally {
                         status = "Error: ${it.message}"
@@ -459,10 +474,31 @@ fun WepinWidgetTestScreen() {
 
             Button(
                 onClick = {
-                    wepinWidget.finalize().thenApply {
-                        status = "Finalized"
-                    }.exceptionally {
-                        status = "Error: ${it.message}"
+                    try {
+                        status = "processing"
+                        wepinWidget.login?.logoutWepin()?.thenApply {
+                            status = "logout: $it"
+                        }
+                    } catch (error: Exception) {
+                        status = "Error: $error"
+                    }
+                },
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                Text("Logout")
+            }
+
+            Button(
+                onClick = {
+                    try {
+                        status = "processing"
+                        val result = wepinWidget.finalize()
+                        status = "finalize: $result"
+                    } catch (error: Exception) {
+                        status = "Error: $error"
                     }
                 },
                 shape = RoundedCornerShape(8.dp),

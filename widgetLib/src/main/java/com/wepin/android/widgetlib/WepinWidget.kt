@@ -7,12 +7,13 @@ import com.wepin.android.commonlib.error.WepinError
 import com.wepin.android.commonlib.types.WepinLifeCycle
 import com.wepin.android.commonlib.types.WepinLoginStatus
 import com.wepin.android.commonlib.types.WepinUser
+import com.wepin.android.core.types.wepin.GetAccountListRequest
+import com.wepin.android.core.types.wepin.GetNFTListRequest
+import com.wepin.android.core.types.wepin.ITermsAccepted
+import com.wepin.android.core.types.wepin.RegisterRequest
+import com.wepin.android.core.types.wepin.UpdateTermsAcceptedRequest
 import com.wepin.android.loginlib.WepinLogin
-import com.wepin.android.networklib.types.wepin.GetAccountListRequest
-import com.wepin.android.networklib.types.wepin.GetNFTListRequest
-import com.wepin.android.networklib.types.wepin.ITermsAccepted
-import com.wepin.android.networklib.types.wepin.RegisterRequest
-import com.wepin.android.networklib.types.wepin.UpdateTermsAcceptedRequest
+import com.wepin.android.loginlib.types.WepinLoginOptions
 import com.wepin.android.widgetlib.manager.WepinWidgetManager
 import com.wepin.android.widgetlib.types.LoginProviderInfo
 import com.wepin.android.widgetlib.types.WepinAccount
@@ -40,11 +41,10 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
     private var _appContext: Context? = wepinWidgetParams.context
     private var _isInitialized: Boolean = false
     private var _platformType: String = platformType ?: "android"
-    private var _wepinWidgetManager: WepinWidgetManager = WepinWidgetManager.getInstance()
+    private lateinit var _wepinWidgetManager: WepinWidgetManager
     private var _wepinWidgetParams: WepinWidgetParams = wepinWidgetParams
 
     var login: WepinLogin? = null
-        get() = _wepinWidgetManager.loginLib
         private set // 외부에서 변경 불가능하게 설정
 
     init {
@@ -57,6 +57,14 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
         if (wepinWidgetParams.appKey.isEmpty()) {
             throw IllegalArgumentException("AppKey is required")
         }
+
+        // Initialize login
+        val wepinLoginOptions = WepinLoginOptions(
+            context = _appContext!!,
+            appId = wepinWidgetParams.appId,
+            appKey = wepinWidgetParams.appKey,
+        )
+        login = WepinLogin(wepinLoginOptions)
     }
 
     fun initialize(attributes: WepinWidgetAttribute): CompletableFuture<Boolean> {
@@ -67,6 +75,7 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
             return completableFuture
         }
 //        _wepinWidgetManager.wepinAttributes = attributes
+        _wepinWidgetManager = WepinWidgetManager.getInstance()
         _wepinWidgetManager.initialize(_appContext!!, _wepinWidgetParams, attributes, _platformType)
             .thenCompose {
                 _wepinWidgetManager._wepinNetwork?.let { network ->
@@ -80,6 +89,7 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
                         }
 
                         login?.init()?.thenApply {
+                            _wepinWidgetManager.setLogin(login)
                             _wepinWidgetManager._wepinSessionManager?.checkLoginStatusAndGetLifeCycle()
                                 ?.thenApply { }
                         }
@@ -160,18 +170,15 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
         return
     }
 
-    fun finalize(): CompletableFuture<Boolean> {
-        Log.i(TAG, "finalize")
-        val completableFuture = CompletableFuture<Boolean>()
+    fun finalize(): Boolean {
         if (!_isInitialized) {
-            completableFuture.completeExceptionally(WepinError.NOT_INITIALIZED_ERROR)
-            return completableFuture
+            throw WepinError.NOT_INITIALIZED_ERROR
         }
         login?.finalize()
-        _wepinWidgetManager.finalize()
+        _wepinWidgetManager.clear()
+        WepinWidgetManager.clearInstance()
         _isInitialized = false
-        completableFuture.complete(true)
-        return completableFuture
+        return true
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -839,6 +846,4 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
 
         return future
     }
-
-
 }
