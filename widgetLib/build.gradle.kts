@@ -60,14 +60,12 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
 
-//    api(project(":libs:common:commonLib"))
-//    implementation(project(":libs:modal:modalLib"))
-//    implementation(project(":libs:core:coreLib"))
-//    api(project(":libs:login:loginLib"))
-    api("io.wepin:wepin-android-sdk-common-v1:1.1.1")
-    implementation("io.wepin:wepin-android-sdk-modal-v1:1.1.1")
-    implementation("io.wepin:wepin-android-sdk-core-v1:1.1.1")
-    api("com.github.WepinWallet:wepin-android-sdk-login-v1:v1.1.1")
+    implementation(libs.jwtdecode)
+
+    api("io.wepin:wepin-android-sdk-common-v1:1.1.2")
+    implementation("io.wepin:wepin-android-sdk-modal-v1:1.1.2")
+    implementation("io.wepin:wepin-android-sdk-core-v1:1.1.2")
+    api("com.github.WepinWallet:wepin-android-sdk-login-v1:v1.1.2")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

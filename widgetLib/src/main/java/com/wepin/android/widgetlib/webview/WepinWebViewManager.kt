@@ -18,6 +18,7 @@ internal class WepinWebViewManager(platformType: String, widgetUrl: String) {
     private var _currentWepinRequest: Map<String, Any?>? = null
     var _responseDeferred: CompletableDeferred<String>? = null
     var _responseWepinUserDeferred: CompletableDeferred<Boolean>? = null
+    var _responseWidgetCloseDeferred: CompletableDeferred<Boolean>? = null
 
 
     fun getResponseDeferred(): CompletableDeferred<String>? {
@@ -28,10 +29,21 @@ internal class WepinWebViewManager(platformType: String, widgetUrl: String) {
         return _responseWepinUserDeferred
     }
 
+    fun getResponseWidgetCloseDeferred(): CompletableDeferred<Boolean>? {
+        return _responseWidgetCloseDeferred
+    }
+
     fun resetResponseWepinUserDeferred() {
         if (_responseWepinUserDeferred != null)
             _responseWepinUserDeferred?.cancel("Resetting deferred instance")
         _responseWepinUserDeferred = CompletableDeferred<Boolean>()
+    }
+
+    fun resetResponseWidgetCloseDeferred() {
+        if (_responseWidgetCloseDeferred != null) {
+            _responseWidgetCloseDeferred?.cancel("Resetting deferred instance")
+        }
+        _responseWidgetCloseDeferred = CompletableDeferred<Boolean>()
     }
 
     fun getCurrentWepinRequest(): Map<String, Any?>? {
@@ -102,5 +114,7 @@ internal class WepinWebViewManager(platformType: String, widgetUrl: String) {
     fun closeWidget() {
         _currentWepinRequest = null
         _wepinModal.closeModal()
+
+        _responseWidgetCloseDeferred?.complete(true)
     }
 }

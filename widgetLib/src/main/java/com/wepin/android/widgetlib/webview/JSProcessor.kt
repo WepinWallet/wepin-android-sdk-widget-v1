@@ -28,9 +28,11 @@ interface Command {
         const val CMD_GET_CLIPBOARD: String = "get_clipboard"
         const val CMD_GET_LOGIN_INFO: String = "get_login_info"
 
+
         /**
          * Commands for get_sdk_request
          */
+        const val CMD_REGISTER_USER_EMAIL: String = "register_user_email"
         const val CMD_REGISTER_WEPIN: String = "register_wepin"
         const val CMD_SEND_TRANSACTION_WITHOUT_PROVIDER: String =
             "send_transaction_without_provider"
@@ -201,12 +203,32 @@ object JSProcessor {
                                         LoginOauthIdTokenRequest(idToken = res.token)
                                     )?.thenAccept { loginResult ->
                                         nextFuture.complete(loginResult ?: "failed login")
-                                    }?.exceptionally { err ->
-                                        nextFuture.complete(
-                                            mapOf(
-                                                "error" to (err.cause?.message ?: err.message)
+                                    }?.exceptionally { error ->
+                                        val actualError: WepinError =
+                                            if (error.cause is WepinError) {
+                                                error.cause as WepinError
+                                            } else {
+                                                WepinError.generalUnKnownEx(
+                                                    error.cause?.message ?: error.message
+                                                )
+                                            }
+                                        if (actualError.code == WepinError.REQUIRED_SIGNUP_EMAIL.code) {
+                                            Log.d(TAG, "it's required_signup_email")
+//                                            jsResponse.body
+                                            nextFuture.complete(
+                                                mapOf(
+                                                    "result" to "no_email",
+                                                    "idToken" to res.token,
+                                                )
                                             )
-                                        )
+                                        } else {
+                                            nextFuture.complete(
+                                                mapOf(
+                                                    "error" to (error.cause?.message
+                                                        ?: error.message)
+                                                )
+                                            )
+                                        }
                                         null
                                     }
                                 }
@@ -219,12 +241,32 @@ object JSProcessor {
                                         )
                                     )?.thenAccept { loginResult ->
                                         nextFuture.complete(loginResult ?: "failed login")
-                                    }?.exceptionally { err ->
-                                        nextFuture.complete(
-                                            mapOf(
-                                                "error" to (err.cause?.message ?: err.message)
+                                    }?.exceptionally { error ->
+                                        val actualError: WepinError =
+                                            if (error.cause is WepinError) {
+                                                error.cause as WepinError
+                                            } else {
+                                                WepinError.generalUnKnownEx(
+                                                    error.cause?.message ?: error.message
+                                                )
+                                            }
+                                        if (actualError.code == WepinError.REQUIRED_SIGNUP_EMAIL.code) {
+                                            Log.d(TAG, "it's required_signup_email")
+//                                            jsResponse.body
+                                            nextFuture.complete(
+                                                mapOf(
+                                                    "result" to "no_email",
+                                                    "accessToken" to res.token,
+                                                )
                                             )
-                                        )
+                                        } else {
+                                            nextFuture.complete(
+                                                mapOf(
+                                                    "error" to (error.cause?.message
+                                                        ?: error.message)
+                                                )
+                                            )
+                                        }
                                         null
                                     }
                                 }
@@ -274,6 +316,7 @@ object JSProcessor {
                 Command.CMD_CLOSE_WEPIN_WIDGET -> {
                     Log.d(TAG, "CMD_CLOSE_WEPIN_WIDGET")
                     jsResponse = null
+                    handleAllPendingOperations()
                     WepinWidgetManager.getInstance().closeWebview()
 
                 }
@@ -305,6 +348,44 @@ object JSProcessor {
         } catch (e: Exception) {
             e.printStackTrace()
             throw WepinError.generalUnKnownEx(e.message)
+        }
+    }
+
+
+    private fun handleAllPendingOperations() {
+        val webViewManager = WepinWidgetManager.getInstance()._wepinWebViewManager
+
+        webViewManager?.let { manager ->
+            // 1. 로그인 진행 중인 경우 처리
+            manager.getResponseWepinUserDeferred()?.let { deferred ->
+                if (!deferred.isCompleted) {
+                    Log.d(TAG, "Login was in progress when widget closed - treating as incomplete")
+                    deferred.complete(false) // 로그인 미완료로 처리
+                }
+            }
+
+            // 2. Command 응답 대기 중인 경우 처리
+            manager.getResponseDeferred()?.let { deferred ->
+                if (!deferred.isCompleted) {
+                    Log.d(
+                        TAG,
+                        "Command was in progress when widget closed - treating as user cancel"
+                    )
+                    try {
+                        deferred.completeExceptionally(WepinError.USER_CANCELED)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to complete command deferred", e)
+                    }
+                }
+            }
+
+            // 3. 위젯 닫힘 대기 중인 경우 처리
+            manager.getResponseWidgetCloseDeferred()?.let { deferred ->
+                if (!deferred.isCompleted) {
+                    Log.d(TAG, "Widget close was being awaited - completing")
+                    deferred.complete(true)
+                }
+            }
         }
     }
 }

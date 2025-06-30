@@ -53,6 +53,7 @@ internal class WepinWidgetManager {
 
     fun getResponseDeferred() = _wepinWebViewManager?.getResponseDeferred()
     fun getResponseWepinUserDeferred() = _wepinWebViewManager?.getResponseWepinUserDeferred()
+    fun getResponseWidgetCloseDeferred() = _wepinWebViewManager?.getResponseWidgetCloseDeferred()
     fun getCurrentWepinRequest() = _wepinWebViewManager?.getCurrentWepinRequest()
     fun getSpecifiedEmail() = _specifiedEmail
     fun setSpecifiedEmail(email: String) {
@@ -76,7 +77,6 @@ internal class WepinWidgetManager {
             defaultLanguage = attributes.defaultLanguage,
             defaultCurrency = attributes.defaultCurrency
         ) //attributes
-        val urlInfo = getWepinSdkUrl(appKey!!)
 
         // Initialize network and wait for completion
         WepinCoreManager.initialize(
@@ -90,6 +90,7 @@ internal class WepinWidgetManager {
                 _wepinNetwork = WepinCoreManager.getNetwork()
                 _wepinSessionManager = WepinCoreManager.getSession()
 
+                val urlInfo = getWepinSdkUrl(appKey!!)
                 // Initialize webview manager
                 _wepinWebViewManager =
                     WepinWebViewManager(sdkType, urlInfo["wepinWebview"] ?: "")

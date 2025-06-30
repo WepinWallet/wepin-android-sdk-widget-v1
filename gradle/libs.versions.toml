@@ -20,6 +20,7 @@ activity = "1.9.0"
 coreKtxVersion = "1.6.1"
 jetbrainsKotlinJvm = "1.9.0"
 maven-publish = "0.29.0"
+jwtVetsion = "2.0.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -47,7 +48,7 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 core-ktx = { group = "androidx.test", name = "core-ktx", version.ref = "coreKtxVersion" }
-
+jwtdecode = { group = "com.auth0.android", name = "jwtdecode", version.ref = "jwtVetsion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

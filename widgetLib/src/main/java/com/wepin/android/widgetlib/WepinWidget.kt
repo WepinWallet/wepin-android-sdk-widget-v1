@@ -80,24 +80,20 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
             .thenCompose {
                 _wepinWidgetManager._wepinNetwork?.let { network ->
 
-                    network.getAppInfo().thenApply { infoResponse ->
-                        if (!infoResponse) {
-                            completableFuture.complete(false)
-                            _isInitialized = false
-
-                            return@thenApply false
+                    login?.init()?.thenCompose {
+                        _wepinWidgetManager.setLogin(login)
+                        _wepinWidgetManager._wepinSessionManager?.checkLoginStatusAndGetLifeCycle()
+                            ?.thenApply {
+                                _isInitialized = true
+                                completableFuture.complete(true)
+                                true
+                            } ?: run {
+                            _isInitialized = true
+                            completableFuture.complete(true)
+                            completableFuture
                         }
-
-                        login?.init()?.thenApply {
-                            _wepinWidgetManager.setLogin(login)
-                            _wepinWidgetManager._wepinSessionManager?.checkLoginStatusAndGetLifeCycle()
-                                ?.thenApply { }
-                        }
-
-                        _isInitialized = true
-                        completableFuture.complete(true)
-                        true
                     }?.exceptionally { error ->
+                        _wepinWidgetManager.clear()
                         _isInitialized = false
                         completableFuture.completeExceptionally(error)
                         null
@@ -137,6 +133,7 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
         return _wepinWidgetManager._wepinSessionManager?.checkLoginStatusAndGetLifeCycle()
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun openWidget(context: Context): CompletableFuture<Boolean> {
         Log.i(TAG, "openWidget")
         val completableFuture = CompletableFuture<Boolean>()
@@ -152,8 +149,28 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
             if (it != WepinLifeCycle.LOGIN) {
                 completableFuture.completeExceptionally(WepinError.INVALID_LOGIN_SESSION)
             } else {
+                _wepinWidgetManager._wepinWebViewManager?.resetResponseWidgetCloseDeferred()
                 _wepinWidgetManager._wepinWebViewManager?.openWidget(context)
-                completableFuture.complete(true)
+
+                _wepinWidgetManager._wepinWebViewManager?.getResponseWidgetCloseDeferred()
+                    ?.invokeOnCompletion { error ->
+                        if (error != null) {
+                            val actualError = if (error.cause is WepinError) {
+                                error.cause
+                            } else {
+                                WepinError.UNKNOWN_ERROR
+                            }
+                        } else {
+                            try {
+                                val result =
+                                    _wepinWidgetManager._wepinWebViewManager?.getResponseWidgetCloseDeferred()
+                                        ?.getCompleted()
+                                completableFuture.complete(result ?: true)
+                            } catch (e: Exception) {
+                                completableFuture.completeExceptionally(e)
+                            }
+                        }
+                    }
             }
         }
         return completableFuture
@@ -171,9 +188,6 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
     }
 
     fun finalize(): Boolean {
-        if (!_isInitialized) {
-            throw WepinError.NOT_INITIALIZED_ERROR
-        }
         login?.finalize()
         _wepinWidgetManager.clear()
         WepinWidgetManager.clearInstance()
@@ -204,11 +218,12 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
             if (it == WepinLifeCycle.LOGIN) {
                 completableFuture.complete(_wepinWidgetManager._wepinSessionManager!!.getWepinUser())
             } else {
-                if (email != null) {
+                if (email != null && login?.regex?.validateEmail(email) != false) {
                     _wepinWidgetManager.setSpecifiedEmail(email)
                 } else {
                     _wepinWidgetManager.setSpecifiedEmail("")
                 }
+
                 if (loginProviders.isNotEmpty()) {
                     _wepinWidgetManager.wepinAttributes?.loginProviders =
                         loginProviders.map { it.provider }
@@ -220,9 +235,14 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
                 _wepinWidgetManager._wepinWebViewManager!!.openWidget(context)
 
                 _wepinWidgetManager._wepinWebViewManager?.getResponseWepinUserDeferred()
-                    ?.invokeOnCompletion { throwable ->
-                        if (throwable != null) {
-                            completableFuture.completeExceptionally(throwable)
+                    ?.invokeOnCompletion { error ->
+                        if (error != null) {
+                            val actualError = if (error.cause is WepinError) {
+                                error.cause
+                            } else {
+                                WepinError.NOT_INITIALIZED_ERROR
+                            }
+                            completableFuture.completeExceptionally(actualError)
                         } else {
                             try {
                                 val result =
@@ -232,11 +252,25 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
                                 if (result == true) {
                                     closeWidget()
                                     completableFuture.complete(_wepinWidgetManager._wepinSessionManager!!.getWepinUser())
-                                } else
+                                } else {
+                                    closeWidget()
                                     completableFuture.completeExceptionally(WepinError.FAILED_LOGIN)
+                                }
                             } catch (e: Exception) {
-//                                Log.e(TAG, "Exception occurred: ${e.message}")
-                                completableFuture.completeExceptionally(e)
+                                closeWidget()
+
+                                // 예외 메시지로 사용자 취소 여부 판단
+                                if (e.message?.contains("User Cancel", ignoreCase = true) == true ||
+                                    e.message?.contains(
+                                        "user_canceled",
+                                        ignoreCase = true
+                                    ) == true ||
+                                    e.message?.contains("cancelled", ignoreCase = true) == true
+                                ) {
+                                    completableFuture.completeExceptionally(WepinError.USER_CANCELED)
+                                } else {
+                                    completableFuture.completeExceptionally(WepinError.FAILED_LOGIN)
+                                }
                             }
                         }
                     }
@@ -303,14 +337,22 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
                     _wepinWidgetManager._wepinSessionManager?.checkLoginStatusAndGetLifeCycle()
                 }?.thenApply {
                     completableFuture.complete(_wepinWidgetManager._wepinSessionManager!!.getWepinUser())
-                }?.exceptionally {
-                    completableFuture.completeExceptionally(it)
+                }?.exceptionally { error ->
+                    val actualError = if (error.cause is WepinError) {
+                        error.cause
+                    } else {
+                        WepinError.NOT_INITIALIZED_ERROR
+                    }
+                    completableFuture.completeExceptionally(actualError)
                     null
                 }
             } else {
+                val pinRequired = userStatus?.pinRequired
+                    ?: (userStatus?.loginStatus === WepinLoginStatus.PIN_REQUIRED)
+
                 val parameter = mapOf(
-                    "loginStatus" to userStatus?.loginStatus,
-                    "pinRequired" to userStatus?.pinRequired
+                    "loginStatus" to userStatus?.loginStatus?.value,
+                    "pinRequired" to pinRequired
                 )
 
                 _wepinWidgetManager._wepinWebViewManager?.openWidgetWithCommand(
@@ -338,18 +380,30 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
                                     completableFuture.completeExceptionally(WepinError.UNKNOWN_ERROR)
                                 }
                             }
-                    }?.exceptionally {
-                        completableFuture.completeExceptionally(it)
+                    }?.exceptionally { error ->
+                        val actualError = if (error.cause is WepinError) {
+                            error.cause
+                        } else {
+                            WepinError.NOT_INITIALIZED_ERROR
+                        }
+                        completableFuture.completeExceptionally(actualError)
                         null
                     }
             }
-        }?.exceptionally {
-            completableFuture.completeExceptionally(it)
+        }?.exceptionally { error ->
+            val actualError = if (error.cause is WepinError) {
+                error.cause
+            } else {
+                WepinError.NOT_INITIALIZED_ERROR
+            }
+            completableFuture.completeExceptionally(actualError)
         }
 
 
         return completableFuture
     }
+
+    fun registerUserEmail(params: String) {}
 
 
     fun getAccounts(
@@ -405,36 +459,40 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
 
                         future.complete(accountInfo)
                     }?.exceptionally { error ->
-                        future.completeExceptionally(error)
+                        val actualError = if (error.cause is WepinError) {
+                            error.cause
+                        } else {
+                            WepinError.NOT_INITIALIZED_ERROR
+                        }
+                        future.completeExceptionally(actualError)
                     }
             }
         }
 
         return future
     }
-
+    
     fun getBalance(accounts: List<WepinAccount>? = null): CompletableFuture<List<WepinAccountBalanceInfo>> {
         Log.i(TAG, "getBalance")
 
-        val future = CompletableFuture<List<WepinAccountBalanceInfo>>()
-
         if (!_isInitialized) {
-            future.completeExceptionally(WepinError.NOT_INITIALIZED_ERROR)
-            return future
+            return CompletableFuture<List<WepinAccountBalanceInfo>>().apply {
+                completeExceptionally(WepinError.NOT_INITIALIZED_ERROR)
+            }
         }
 
-        getStatus()?.thenCompose { status ->
-            val statusFuture = CompletableFuture<List<WepinAccountBalanceInfo>>()
-
+        return getStatus()?.thenCompose { status ->
             if (status != WepinLifeCycle.LOGIN) {
-                statusFuture.completeExceptionally(WepinError.generalIncorrectLifeCycle("The LifeCycle is not login"))
-                return@thenCompose statusFuture
+                return@thenCompose CompletableFuture<List<WepinAccountBalanceInfo>>().apply {
+                    completeExceptionally(WepinError.generalIncorrectLifeCycle("The LifeCycle is not login"))
+                }
             }
 
             val userInfo = _wepinWidgetManager._wepinSessionManager?.getWepinUser()
             if (userInfo == null) {
-                statusFuture.completeExceptionally(WepinError.generalIncorrectLifeCycle("The userInfo is null"))
-                return@thenCompose statusFuture
+                return@thenCompose CompletableFuture<List<WepinAccountBalanceInfo>>().apply {
+                    completeExceptionally(WepinError.generalIncorrectLifeCycle("The userInfo is null"))
+                }
             }
 
             val userId = userInfo.userInfo?.userId
@@ -442,17 +500,16 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
             val localeId = _wepinWidgetManager.wepinAttributes?.defaultLanguage
 
             if (userId == null || walletId == null) {
-                statusFuture.completeExceptionally(WepinError.generalIncorrectLifeCycle("The userId or walletId is null"))
-                return@thenCompose statusFuture
+                return@thenCompose CompletableFuture<List<WepinAccountBalanceInfo>>().apply {
+                    completeExceptionally(WepinError.generalIncorrectLifeCycle("The userId or walletId is null"))
+                }
             }
 
             // ✅ `getAppAccountList` 호출
             val accountFuture = _wepinWidgetManager._wepinNetwork?.getAppAccountList(
                 GetAccountListRequest(walletId, userId, localeId!!)
-            ) ?: run {
-                val networkErrorFuture = CompletableFuture<List<WepinAccountBalanceInfo>>()
-                networkErrorFuture.completeExceptionally(WepinError.generalApiRequestError("Network error"))
-                return@thenCompose networkErrorFuture
+            ) ?: return@thenCompose CompletableFuture<List<WepinAccountBalanceInfo>>().apply {
+                completeExceptionally(WepinError.generalApiRequestError("Network error"))
             }
 
             accountFuture.thenCompose { accountList ->
@@ -463,9 +520,9 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
                 ).toMutableList()
 
                 if (detailAccounts.isEmpty()) {
-                    val accountErrorFuture = CompletableFuture<List<WepinAccountBalanceInfo>>()
-                    accountErrorFuture.completeExceptionally(WepinError.ACCOUNT_NOT_FOUND)
-                    return@thenCompose accountErrorFuture
+                    return@thenCompose CompletableFuture<List<WepinAccountBalanceInfo>>().apply {
+                        completeExceptionally(WepinError.ACCOUNT_NOT_FOUND)
+                    }
                 }
 
                 val isAllAccounts = accounts.isNullOrEmpty()
@@ -482,9 +539,9 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
                 }
 
                 if (filteredAccounts.isEmpty()) {
-                    val noMatchFuture = CompletableFuture<List<WepinAccountBalanceInfo>>()
-                    noMatchFuture.completeExceptionally(WepinError.generalAccountNotFound("No matching accounts found"))
-                    return@thenCompose noMatchFuture
+                    return@thenCompose CompletableFuture<List<WepinAccountBalanceInfo>>().apply {
+                        completeExceptionally(WepinError.generalAccountNotFound("No matching accounts found"))
+                    }
                 }
 
                 // ✅ 병렬로 `getAccountBalance` 호출
@@ -507,18 +564,10 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
                         }
                         balanceInfo
                     }
-            }.whenComplete { result, throwable ->
-                if (throwable != null) {
-                    future.completeExceptionally(throwable)
-                } else {
-                    future.complete(result)
-                }
             }
-
-            return@thenCompose statusFuture
-        } ?: future.completeExceptionally(WepinError.generalApiRequestError("Network error"))
-
-        return future
+        } ?: CompletableFuture<List<WepinAccountBalanceInfo>>().apply {
+            completeExceptionally(WepinError.generalApiRequestError("Network error"))
+        }
     }
 
     fun getNFTs(
@@ -597,9 +646,14 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
 
                     detailNftList.nfts.mapNotNull { nft -> filterNft(nft, availableAccounts) }
                 }
-            }.whenComplete { result, throwable ->
-                if (throwable != null) {
-                    future.completeExceptionally(throwable)
+            }.whenComplete { result, error ->
+                if (error != null) {
+                    val actualError = if (error.cause is WepinError) {
+                        error.cause
+                    } else {
+                        WepinError.NOT_INITIALIZED_ERROR
+                    }
+                    future.completeExceptionally(actualError)
                 } else {
                     future.complete(result)
                 }
@@ -711,15 +765,25 @@ class WepinWidget(wepinWidgetParams: WepinWidgetParams, platformType: String? = 
                     } else {
                         future.completeExceptionally(WepinError.FAILED_SEND)
                     }
-                }?.exceptionally { throwable ->
-                    future.completeExceptionally(throwable)
+                }?.exceptionally { error ->
+                    val actualError = if (error.cause is WepinError) {
+                        error.cause
+                    } else {
+                        WepinError.NOT_INITIALIZED_ERROR
+                    }
+                    future.completeExceptionally(actualError)
                     null
                 }
 
                 return@thenCompose future
 
-            }?.exceptionally { throwable ->
-                future.completeExceptionally(throwable)
+            }?.exceptionally { error ->
+                val actualError = if (error.cause is WepinError) {
+                    error.cause
+                } else {
+                    WepinError.NOT_INITIALIZED_ERROR
+                }
+                future.completeExceptionally(actualError)
                 null
             }
         } ?: future.completeExceptionally(WepinError.generalApiRequestError("Network error"))
