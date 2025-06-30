@@ -28,7 +28,6 @@ interface Command {
         const val CMD_GET_CLIPBOARD: String = "get_clipboard"
         const val CMD_GET_LOGIN_INFO: String = "get_login_info"
 
-
         /**
          * Commands for get_sdk_request
          */
@@ -340,7 +339,7 @@ object JSProcessor {
             }
 
             val response = objectMapper.writeValueAsString(jsResponse)
-            Log.d(TAG, "JSProcessor Response : $response")
+//            Log.d(TAG, "JSProcessor Response : $response")
 
             // JSInterface의 onResponse 메서드를 통해 JavaScript로 응답 전송
             callback(response)

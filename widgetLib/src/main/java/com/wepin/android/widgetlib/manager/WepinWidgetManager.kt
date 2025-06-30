@@ -110,7 +110,6 @@ internal class WepinWidgetManager {
     }
 
     fun clear() {
-        android.util.Log.d("WepinWidgetManager", "FINALIZE CALLED", Throwable("stack trace"))
         _wepinWebViewManager?.closeWidget()
         WepinCoreManager.clear()
         _wepinNetwork = null

@@ -2,7 +2,6 @@ package com.wepin.android.widgetlib
 
 import android.app.Activity
 import android.content.Context
-import android.util.Log
 import com.wepin.android.commonlib.error.WepinError
 import com.wepin.android.commonlib.types.WepinLifeCycle
 import com.wepin.android.commonlib.types.WepinLoginStatus
@@ -12,6 +11,7 @@ import com.wepin.android.core.types.wepin.GetNFTListRequest
 import com.wepin.android.core.types.wepin.ITermsAccepted
 import com.wepin.android.core.types.wepin.RegisterRequest
 import com.wepin.android.core.types.wepin.UpdateTermsAcceptedRequest
+import com.wepin.android.core.utils.Log
 import com.wepin.android.loginlib.WepinLogin
 import com.wepin.android.loginlib.types.WepinLoginOptions
 import com.wepin.android.widgetlib.manager.WepinWidgetManager
